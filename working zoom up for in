@@ -1,0 +1,124 @@
+import React, { useState, useEffect, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+
+export default function OmnipositoryUI() {
+  const [zoomProgress, setZoomProgress] = useState(0); 
+  const [targetZoom, setTargetZoom] = useState(0);
+  const [activeTheme, setActiveTheme] = useState(null);
+  const [viewDepth, setViewDepth] = useState("navigator");
+
+  // Smooth Interpolation for the zoom
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setZoomProgress((prev) => prev + (targetZoom - prev) * 0.1);
+    }, 16);
+    return () => clearTimeout(timeout);
+  }, [targetZoom, zoomProgress]);
+
+  const handleWheel = useCallback((e) => {
+    if (viewDepth !== "navigator") return;
+    const zoomStep = 0.001; 
+    const direction = e.deltaY < 0 ? 1 : -1; 
+    
+    setTargetZoom((prev) => {
+      const next = prev + (direction * zoomStep * Math.abs(e.deltaY));
+      return Math.min(Math.max(next, 0), 1);
+    });
+  }, [viewDepth]);
+
+  useEffect(() => {
+    window.addEventListener("wheel", handleWheel, { passive: false });
+    return () => window.removeEventListener("wheel", handleWheel);
+  }, [handleWheel]);
+
+  // Derived Values
+  const heroScale = 1 + (zoomProgress * 19);
+  const heroOpacity = Math.max(0, 1 - (zoomProgress * 2.5));
+  const cloudScale = zoomProgress < 0.3 ? 0 : (zoomProgress - 0.3) / 0.7;
+  const cloudOpacity = zoomProgress < 0.4 ? 0 : (zoomProgress - 0.4) / 0.6;
+
+  return (
+    <div style={{ 
+      height: "100vh", width: "100vw", backgroundColor: "#fcfdfe", 
+      overflow: "hidden", position: "fixed" 
+    }}>
+      <AnimatePresence mode="wait">
+        {viewDepth === "navigator" ? (
+          <motion.div 
+            key="nav" 
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}
+          >
+            {/* HERO BUBBLE */}
+            <motion.div
+              style={{
+                width: "320px", height: "320px", borderRadius: "50%", position: "absolute", z="20",
+                display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                background: "radial-gradient(circle at 30% 30%, #ffffff 0%, #e0f2fe 100%)",
+                boxShadow: "0 20px 60px rgba(0,0,0,0.1), inset 15px 15px 40px #ffffff",
+                scale: heroScale,
+                opacity: heroOpacity,
+                border: "2px solid white",
+                pointerEvents: heroOpacity < 0.2 ? "none" : "auto"
+              }}
+            >
+              <h2 style={{ fontSize: "20px", fontWeight: "900", color: "#0c4a6e", textTransform: "uppercase" }}>Omnipository</h2>
+              <p style={{ fontSize: "10px", marginTop: "10px", color: "#64748b" }}>Scroll Up to Dive</p>
+            </motion.div>
+
+            {/* INNER CLOUD */}
+            <motion.div 
+              style={{ 
+                position: "relative", width: "100%", height: "100%",
+                scale: cloudScale, opacity: cloudOpacity,
+                display: "flex", alignItems: "center", justifyContent: "center"
+              }}
+            >
+              <Multipository theme="Organization" x="0px" y="-180px" color="#10b981" onSelect={(t) => {setActiveTheme(t); setViewDepth("unipository");}} />
+              <Multipository theme="Systems" x="-260px" y="120px" color="#e11d48" onSelect={(t) => {setActiveTheme(t); setViewDepth("unipository");}} />
+              <Multipository theme="Terminology" x="260px" y="120px" color="#f59e0b" onSelect={(t) => {setActiveTheme(t); setViewDepth("unipository");}} />
+            </motion.div>
+          </motion.div>
+        ) : (
+          /* DETAIL VIEW */
+          <motion.div 
+            key="uni" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+            style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", background: "white" }}
+          >
+            <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <h3 style={{ fontSize: "64px", fontWeight: "900", color: "#0c4a6e", textTransform: "uppercase" }}>{activeTheme}</h3>
+            </div>
+            <button 
+              onClick={() => { setViewDepth("navigator"); setTargetZoom(1); setZoomProgress(1); }} 
+              style={{ 
+                margin: "40px auto", padding: "15px 30px", borderRadius: "30px", 
+                border: "1px solid #ddd", background: "white", fontWeight: "bold", cursor: "pointer" 
+              }}
+            >
+              ← BACK TO CLOUD
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function Multipository({ theme, x, y, color, onSelect }) {
+  return (
+    <motion.div 
+      style={{ position: "absolute", left: "50%", top: "50%", x, y, cursor: "pointer", translateX: "-50%", translateY: "-50%" }}
+      whileHover={{ scale: 1.05 }}
+      onClick={() => onSelect(theme)}
+    >
+      <div style={{ 
+        width: "240px", height: "240px", borderRadius: "50%", 
+        background: "#ffffff", border: `4px solid ${color}`,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        boxShadow: "0 20px 40px rgba(0,0,0,0.05)"
+      }}>
+        <h3 style={{ fontSize: "18px", fontWeight: "900", color: "#0c4a6e" }}>{theme}</h3>
+      </div>
+    </motion.div>
+  );
+}
