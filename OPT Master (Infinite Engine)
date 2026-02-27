@@ -1,0 +1,84 @@
+import React, { useState, useEffect } from "react";
+import { motion, AnimatePresence, useSpring, useTransform, useMotionValue } from "framer-motion";
+
+// --- OPT_DATA (The Unit Identity) ---
+// Customize this object to change labels, colors, and nesting levels.
+const OPT_DATA = {
+  label: "OMNIPOSITORY",
+  color: "#ffffff",
+  subThemes: [
+    {
+      label: "STRATEGY",
+      color: "#10b981",
+      subThemes: [
+        { label: "Research", color: "#34d399", subThemes: [] },
+        { label: "Execution", color: "#059669", subThemes: [] }
+      ]
+    },
+    {
+      label: "DESIGN",
+      color: "#ef4444",
+      subThemes: [{ label: "UX/UI", color: "#f87171", subThemes: [] }]
+    },
+    {
+      label: "MARKETING",
+      color: "#f59e0b",
+      subThemes: [{ label: "Campaigns", color: "#fbbf24", subThemes: [] }]
+    }
+  ]
+};
+
+// --- OPTMaster (The Engine) ---
+export default function OmnipositoryMaster() {
+  const [navStack, setNavStack] = useState([OPT_DATA]);
+  const currentLevel = navStack[navStack.length - 1];
+  
+  const scrollValue = useMotionValue(0);
+  const smoothScroll = useSpring(scrollValue, { stiffness: 60, damping: 30 });
+
+  // Perspective Mappings
+  const shellZ = useTransform(smoothScroll, [0, 1], [0, 3000]);
+  const shellOpacity = useTransform(smoothScroll, [0, 0.45], [1, 0]);
+  const innerZ = useTransform(smoothScroll, [0, 1], [-5000, 0]);
+  const innerOpacity = useTransform(smoothScroll, [0.1, 0.6], [0, 1]);
+
+  useEffect(() => {
+    const handleWheel = (e) => {
+      // Zoom logic only active on the Root level (Level 0)
+      if (navStack.length > 1) return;
+      
+      e.preventDefault();
+      // Multiplier (0.0015) controls scroll speed.
+      // Subtracting delta ensures "Down" scroll = "Forward" motion.
+      const delta = e.deltaY * 0.0015;
+      scrollValue.set(Math.min(Math.max(scrollValue.get() - delta, 0), 1));
+    };
+
+    window.addEventListener("wheel", handleWheel, { passive: false });
+    return () => window.removeEventListener("wheel", handleWheel);
+  }, [navStack, scrollValue]);
+
+  const diveIn = (theme) => {
+    if (theme.subThemes?.length > 0) {
+      setNavStack([...navStack, theme]);
+    }
+  };
+
+  const goBack = () => {
+    if (navStack.length > 1) {
+      setNavStack(navStack.slice(0, -1));
+    }
+  };
+
+  return (
+    <div style={{ 
+      position: "fixed", inset: 0, 
+      background: "radial-gradient(circle at center, #0ea5e9 0%, #075985 100%)",
+      overflow: "hidden" 
+    }}>
+      
+      {/* Background Atmosphere */}
+      <div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
+        {[...Array(15)].map((_, i) => (
+          <motion.div key={i} 
+            animate={{ opacity: [0.
