@@ -1,0 +1,104 @@
+import React, { useState, useEffect, useCallback } from "react";
+import { motion, AnimatePresence, useSpring, useTransform, useMotionValue } from "framer-motion";
+
+export default function OmnipositoryMaster() {
+  const [activeTheme, setActiveTheme] = useState(null);
+  const zoomValue = useMotionValue(0); 
+
+  const smoothZoom = useSpring(zoomValue, {
+    stiffness: 80,
+    damping: 35,
+    mass: 1
+  });
+
+  // Hero (Omnipository) 3D Flight
+  const heroZ = useTransform(smoothZoom, [0, 1], [0, 2500]);
+  const heroOpacity = useTransform(smoothZoom, [0, 0.4], [1, 0]);
+  
+  // Cloud (Themes) 3D Flight
+  const cloudZ = useTransform(smoothZoom, [0, 1], [-4000, 0]);
+  const cloudScale = useTransform(smoothZoom, [0, 1], [0.01, 1]);
+  const cloudOpacity = useTransform(smoothZoom, [0.4, 0.9], [0, 1]);
+
+  useEffect(() => {
+    const handleGlobalWheel = (e) => {
+      e.preventDefault();
+      const sensitivity = 0.0015;
+      const currentZoom = zoomValue.get();
+      const delta = e.deltaY < 0 ? sensitivity * 60 : -sensitivity * 60;
+      zoomValue.set(Math.min(Math.max(currentZoom + delta, 0), 1));
+    };
+
+    window.addEventListener("wheel", handleGlobalWheel, { passive: false });
+    return () => window.removeEventListener("wheel", handleGlobalWheel);
+  }, [zoomValue]);
+
+  return (
+    <div style={{ 
+      height: "100vh", width: "100vw", backgroundColor: "#020617", // Darker background makes 3D glow pop
+      overflow: "hidden", position: "fixed", top: 0, left: 0,
+      perspective: "1200px" 
+    }}>
+      
+      {/* LEVEL 0: OMNIPOSITORY HERO */}
+      <motion.div
+        style={{
+          width: "400px", height: "400px", borderRadius: "50%",
+          position: "absolute", top: "50%", left: "50%", x: "-50%", y: "-50%",
+          background: "radial-gradient(circle at 30% 30%, #ffffff 0%, #f0f9ff 100%)",
+          boxShadow: "0 50px 100px rgba(0,0,0,0.5), inset 10px 10px 30px #ffffff",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          border: "1px solid rgba(255,255,255,0.8)",
+          zIndex: 10,
+          translateZ: heroZ,
+          opacity: heroOpacity,
+          pointerEvents: "none"
+        }}
+      >
+        <h1 style={{ fontSize: "28px", fontWeight: "900", color: "#0c4a6e", letterSpacing: "2px" }}>OMNIPOSITORY</h1>
+      </motion.div>
+
+      {/* LEVEL 1: 3D THEME CLOUD */}
+      <motion.div 
+        style={{ 
+          position: "absolute", width: "100%", height: "100%",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          translateZ: cloudZ,
+          scale: cloudScale,
+          opacity: cloudOpacity,
+          transformStyle: "preserve-3d"
+        }}
+      >
+        <ThemeBubble label="THEME 1" x="-350px" y="-150px" color="#10b981" onSelect={setActiveTheme} />
+        <ThemeBubble label="THEME 2" x="0px" y="250px" color="#ef4444" onSelect={setActiveTheme} />
+        <ThemeBubble label="THEME 3" x="350px" y="-150px" color="#f59e0b" onSelect={setActiveTheme} />
+      </motion.div>
+
+      {/* THEME CONTENT OVERLAY */}
+      <AnimatePresence>
+        {activeTheme && (
+          <motion.div 
+            initial={{ opacity: 0, scale: 1.1 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.1 }}
+            style={{ 
+              position: "fixed", inset: 0, zIndex: 100, backgroundColor: "#ffffff",
+              display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" 
+            }}
+          >
+            <h2 style={{ fontSize: "80px", fontWeight: "900", color: "#0f172a" }}>{activeTheme}</h2>
+            <button 
+              onClick={() => setActiveTheme(null)} 
+              style={{ marginTop: "40px", padding: "15px 40px", borderRadius: "50px", border: "2px solid #0f172a", background: "none", fontWeight: "900", cursor: "pointer" }}
+            >
+              RETURN TO CLOUD
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function ThemeBubble({ label, x, y, color, onSelect }) {
+  return (
+    <motion.div 
+      style={{ position: "absolute", x, y
