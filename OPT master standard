@@ -1,0 +1,173 @@
+import React, { useState, useEffect } from "react";
+import { motion, AnimatePresence, useSpring, useTransform, useMotionValue } from "framer-motion";
+
+// --- MASTER DATA ---
+const OPT_DATA = {
+  label: "OMNIPOSITORY",
+  color: "#ffffff",
+  subThemes: [
+    {
+      label: "STRATEGY",
+      color: "#10b981",
+      subThemes: [
+        { label: "Research", color: "#34d399", subThemes: [] },
+        { label: "Execution", color: "#059669", subThemes: [] }
+      ]
+    },
+    {
+      label: "DESIGN",
+      color: "#ef4444",
+      subThemes: [{ label: "UX/UI", color: "#f87171", subThemes: [] }]
+    },
+    {
+      label: "MARKETING",
+      color: "#f59e0b",
+      subThemes: [{ label: "Campaigns", color: "#fbbf24", subThemes: [] }]
+    }
+  ]
+};
+
+export default function OmnipositoryMaster() {
+  const [navStack, setNavStack] = useState([OPT_DATA]);
+  const currentLevel = navStack[navStack.length - 1];
+  
+  const scrollValue = useMotionValue(0);
+  const smoothScroll = useSpring(scrollValue, { stiffness: 60, damping: 30 });
+
+  // 3D Perspective Transforms
+  const shellZ = useTransform(smoothScroll, [0, 1], [0, 3000]);
+  const shellOpacity = useTransform(smoothScroll, [0, 0.45], [1, 0]);
+  
+  const innerZ = useTransform(smoothScroll, [0, 1], [-5000, 0]);
+  const innerOpacity = useTransform(smoothScroll, [0.1, 0.6], [0, 1]);
+
+  useEffect(() => {
+    const handleWheel = (e) => {
+      if (navStack.length > 1) return;
+      
+      e.preventDefault();
+      // SCROLL DIRECTION TUNING:
+      // If "Down" still pulls away, change the "-" to a "+" below.
+      const delta = e.deltaY * 0.0015;
+      scrollValue.set(Math.min(Math.max(scrollValue.get() - delta, 0), 1));
+    };
+
+    window.addEventListener("wheel", handleWheel, { passive: false });
+    return () => window.removeEventListener("wheel", handleWheel);
+  }, [navStack, scrollValue]);
+
+  const diveIn = (theme) => {
+    if (theme.subThemes?.length > 0) setNavStack([...navStack, theme]);
+  };
+
+  const goBack = () => {
+    if (navStack.length > 1) setNavStack(navStack.slice(0, -1));
+  };
+
+  return (
+    <div style={{ 
+      position: "fixed", inset: 0, 
+      background: "radial-gradient(circle at center, #0ea5e9 0%, #075985 100%)",
+      overflow: "hidden" 
+    }}>
+      
+      {/* BACKGROUND BOKEH CLOUD */}
+      <div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
+        {[...Array(15)].map((_, i) => (
+          <motion.div key={i} 
+            animate={{ 
+              opacity: [0.15, 0.35, 0.15],
+              scale: [1, 1.2, 1],
+            }}
+            transition={{ duration: 10 + i, repeat: Infinity, ease: "easeInOut" }}
+            style={{ 
+              position: "absolute", 
+              width: 250 + (i * 50), 
+              height: 250 + (i * 50), 
+              borderRadius: "50%",
+              background: "rgba(255, 255, 255, 0.2)", 
+              filter: "blur(60px)",
+              top: `${Math.random() * 100}%`, 
+              left: `${Math.random() * 100}%` 
+            }}
+          />
+        ))}
+      </div>
+
+      <div style={{ width: "100vw", height: "100vh", perspective: "1200px", transformStyle: "preserve-3d" }}>
+        
+        {/* LEVEL 0: THE SHELL */}
+        {navStack.length === 1 && (
+          <motion.div style={{
+            width: 420, height: 420, borderRadius: "50%",
+            position: "absolute", top: "50%", left: "50%", x: "-50%", y: "-50%",
+            background: "rgba(255, 255, 255, 0.15)", backdropFilter: "blur(12px)",
+            border: "1px solid rgba(255, 255, 255, 0.4)",
+            translateZ: shellZ, opacity: shellOpacity,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            boxShadow: "0 60px 100px rgba(0,0,0,0.2), inset 0 0 40px rgba(255,255,255,0.3)",
+            zIndex: 10, pointerEvents: "none"
+          }}>
+            <h1 style={{ color: "white", fontSize: "28px", fontWeight: 900, letterSpacing: "4px" }}>{OPT_DATA.label}</h1>
+          </motion.div>
+        )}
+
+        {/* RECURSIVE CLOUD */}
+        <AnimatePresence mode="wait">
+          <motion.div 
+            key={currentLevel.label}
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 1.4 }}
+            transition={{ duration: 0.5 }}
+            style={{ 
+              position: "absolute", width: "100%", height: "100%",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              transformStyle: "preserve-3d",
+              translateZ: navStack.length === 1 ? innerZ : 0,
+              opacity: navStack.length === 1 ? innerOpacity : 1
+            }}
+          >
+            {currentLevel.subThemes.map((theme, i) => {
+              const angle = (i / currentLevel.subThemes.length) * Math.PI * 2;
+              const x = Math.cos(angle) * 320;
+              const y = Math.sin(angle) * 320;
+
+              return (
+                <ThemeBubble key={theme.label} theme={theme} x={x} y={y} onSelect={() => diveIn(theme)} />
+              );
+            })}
+
+            {/* UP Button */}
+            {navStack.length > 1 && (
+              <button onClick={goBack} style={{
+                position: "absolute", bottom: 60, padding: "12px 40px",
+                borderRadius: "40px", border: "2px solid white", background: "rgba(255,255,255,0.1)",
+                color: "white", fontWeight: 900, cursor: "pointer", backdropFilter: "blur(10px)"
+              }}>
+                UP TO {navStack[navStack.length - 2].label}
+              </button>
+            )}
+          </motion.div>
+        </AnimatePresence>
+      </div>
+    </div>
+  );
+}
+
+function ThemeBubble({ theme, x, y, onSelect }) {
+  return (
+    <motion.div style={{ position: "absolute", x, y, cursor: "pointer", transformStyle: "preserve-3d" }}
+      whileHover={{ scale: 1.05, translateZ: 40 }} onClick={onSelect}>
+      <div style={{ 
+        width: 300, height: 300, borderRadius: "50%", 
+        background: `radial-gradient(circle at 35% 35%, rgba(255,255,255,0.4) 0%, ${theme.color}66 100%)`,
+        backdropFilter: "blur(8px)", border: `2px solid ${theme.color}88`,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        boxShadow: `0 30px 60px rgba(0,0,0,0.2), inset 0 0 40px rgba(255,255,255,0.4)`
+      }}>
+        <h3 style={{ color: "white", fontWeight: 900, textAlign: "center", padding: "20px" }}>{theme.label}</h3>
+      </div>
+    </motion.div>
+  );
+}
