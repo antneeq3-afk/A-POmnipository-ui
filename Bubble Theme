@@ -1,0 +1,57 @@
+// --- ThemeBubble: The Visual Identity of the OPT Standard ---
+function ThemeBubble({ theme, x, y, onSelect }) {
+  return (
+    <motion.div 
+      // Positioning logic received from the Master Engine
+      style={{ 
+        position: "absolute", 
+        x, 
+        y, 
+        cursor: "pointer", 
+        transformStyle: "preserve-3d" 
+      }}
+      // Interaction: Gentle scale and forward movement on hover
+      whileHover={{ scale: 1.05, translateZ: 40 }} 
+      onClick={onSelect}
+    >
+      <div style={{ 
+        width: 300, 
+        height: 300, 
+        borderRadius: "50%", 
+        // Glassmorphism: Radial gradient mixed with the theme's unique color
+        background: `radial-gradient(circle at 35% 35%, rgba(255,255,255,0.4) 0%, ${theme.color}66 100%)`,
+        backdropFilter: "blur(8px)", 
+        border: `2px solid ${theme.color}88`,
+        display: "flex", 
+        alignItems: "center", 
+        justifyContent: "center",
+        // Depth: Double shadow for both "drop" and "inner" glow
+        boxShadow: `0 30px 60px rgba(0,0,0,0.2), inset 0 0 40px rgba(255,255,255,0.4)`,
+        position: "relative"
+      }}>
+        {/* Specular Highlight: Gives the bubble its 3D 'glass' look */}
+        <div style={{ 
+          position: "absolute", 
+          top: "10%", 
+          left: "15%", 
+          width: "40%", 
+          height: "30%",
+          background: "radial-gradient(circle, rgba(255,255,255,0.6) 0%, rgba(255,255,255,0) 80%)",
+          borderRadius: "50%", 
+          transform: "rotate(-20deg)" 
+        }} />
+
+        {/* Label: Focused white text with a slight shadow for legibility */}
+        <h3 style={{ 
+          color: "white", 
+          fontWeight: 900, 
+          textAlign: "center", 
+          padding: "20px",
+          textShadow: "0 2px 10px rgba(0,0,0,0.2)"
+        }}>
+          {theme.label}
+        </h3>
+      </div>
+    </motion.div>
+  );
+}
