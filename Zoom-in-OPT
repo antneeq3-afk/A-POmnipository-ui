@@ -1,0 +1,154 @@
+import React, { useRef, useState } from "react";
+import { motion, useScroll, useTransform, useSpring, animate, AnimatePresence } from "framer-motion";
+
+/**
+ * ARCHITECTURE:
+ * 1. OMNIPOSITORY: Hero Entry Sphere
+ * 2. MULTIPOSITORY: Thematic Selection Cloud
+ * 3. UNIPOSITORY: Detail Glass Pane (From your sketch)
+ */
+
+export default function OmnipositoryUI() {
+  const containerRef = useRef(null);
+  const [activeTheme, setActiveTheme] = useState(null);
+  const [viewDepth, setViewDepth] = useState("navigator");
+
+  const { scrollYProgress } = useScroll({
+    target: containerRef,
+    offset: ["start start", "end end"]
+  });
+
+  const smoothProgress = useSpring(scrollYProgress, { 
+    stiffness: 80, 
+    damping: 25 
+  });
+
+  // NATURAL ZOOM: Top (0) = ZOOMED IN. Bottom (1) = HERO VIEW.
+  const heroScale = useTransform(smoothProgress, [0.6, 1], [15, 1]);
+  const heroOpacity = useTransform(smoothProgress, [0.7, 0.9], [0, 1]);
+  const cloudScale = useTransform(smoothProgress, [0, 0.5], [1, 0.2]);
+  const cloudOpacity = useTransform(smoothProgress, [0, 0.4], [1, 0]);
+
+  const handleInitiateZoom = () => {
+    // Programmatic scroll to the top where the Cloud lives
+    animate(window.scrollY, 0, {
+      type: "spring",
+      stiffness: 40,
+      damping: 20,
+      onUpdate: (v) => window.scrollTo(0, v)
+    });
+  };
+
+  return (
+    <div ref={containerRef} style={{ height: "400vh", backgroundColor: "#fcfdfe" }}>
+      <div style={{ position: "sticky", top: 0, height: "100vh", width: "100vw", overflow: "hidden" }}>
+        
+        <AnimatePresence mode="wait">
+          {viewDepth === "navigator" ? (
+            <motion.div 
+              key="nav-screen" 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              exit={{ opacity: 0 }}
+              style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}
+            >
+              {/* STAGE 1: OMNIPOSITORY HERO */}
+              <motion.div
+                style={{
+                  width: "320px", height: "320px", borderRadius: "50%", position: "absolute", zIndex: 20,
+                  display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                  background: "radial-gradient(circle at 30% 30%, #fff 0%, #e0f2fe 100%)",
+                  boxShadow: "0 20px 60px rgba(0,0,0,0.1), inset 15px 15px 40px #fff",
+                  scale: heroScale, opacity: heroOpacity, border: "2px solid white"
+                }}
+              >
+                <h2 style={{ fontSize: "20px", fontWeight: 900, color: "#0c4a6e", textTransform: "uppercase", letterSpacing: "0.1em" }}>Omnipository</h2>
+                <button 
+                  onClick={handleInitiateZoom}
+                  style={{ marginTop: "24px", padding: "12px 24px", background: "#0284c7", color: "white", borderRadius: "30px", border: "none", fontWeight: 900, fontSize: "10px", cursor: "pointer", textTransform: "uppercase" }}
+                >
+                  Initiate Zoom
+                </button>
+              </motion.div>
+
+              {/* STAGE 2: MULTIPOSITORY CLOUD */}
+              <motion.div style={{ position: "relative", width: "100%", height: "100%", scale: cloudScale, opacity: cloudOpacity }}>
+                <Multipository theme="Organization" x="-350px" y="-220px" color="#10b981" onSelect={(t) => {setActiveTheme(t); setViewDepth("unipository");}} />
+                <Multipository theme="Systems" x="350px" y="50px" color="#e11d48" onSelect={(t) => {setActiveTheme(t); setViewDepth("unipository");}} />
+                <Multipository theme="Terminology" x="-50px" y="300px" color="#f59e0b" onSelect={(t) => {setActiveTheme(t); setViewDepth("unipository");}} />
+              </motion.div>
+            </motion.div>
+          ) : (
+            /* STAGE 3: UNIPOSITORY (Matched to your sketch) */
+            <motion.div 
+              key="uni-screen"
+              initial={{ opacity: 0, scale: 0.9 }} 
+              animate={{ opacity: 1, scale: 1 }}
+              style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", background: "white" }}
+            >
+              {/* Header: Vertical Navigation */}
+              <header style={{ height: "100px", borderBottom: "1px solid #f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
+                <span style={{ fontWeight: 900, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.4em", color: "#64748b" }}>Vertical Navigation (Levels)</span>
+                
+                {/* Compass Logo Area */}
+                <div style={{ position: "absolute", right: "40px", top: "20px", textAlign: "right" }}>
+                   <p style={{ fontSize: "9px", fontWeight: 900, color: "#e11d48", textTransform: "uppercase", margin: "0 0 4px 0" }}>Optipositor</p>
+                   <div style={{ width: "32px", height: "32px", border: "2px solid #0f172a", borderRadius: "50%", margin: "0 0 0 auto", position: "relative" }}>
+                      <div style={{ position: "absolute", height: "100%", width: "1px", background: "#0f172a", left: "50%", transform: "translateX(-50%)" }} />
+                      <div style={{ position: "absolute", width: "100%", height: "1px", background: "#0f172a", top: "50%", transform: "translateY(-50%)" }} />
+                      <div style={{ position: "absolute", inset: "4px", border: "1px solid #0f172a", transform: "rotate(45deg)" }} />
+                   </div>
+                </div>
+
+                <button onClick={() => setViewDepth("navigator")} style={{ position: "absolute", left: "40px", border: "none", background: "none", cursor: "pointer", fontWeight: 900, color: "#0284c7", fontSize: "10px", textTransform: "uppercase" }}>← Back to Cloud</button>
+              </header>
+
+              {/* History Bridge / "The Path" */}
+              <div style={{ height: "60px", display: "flex", justifyContent: "center", alignItems: "center", gap: "16px" }}>
+                 <div style={{ height: "1px", width: "80px", background: "#cbd5e1" }} />
+                 <span style={{ fontSize: "10px", fontWeight: 900, color: "#94a3b8", letterSpacing: "0.1em" }}>● —— ● —— ● (History Bridge) —— ●</span>
+                 <div style={{ height: "1px", width: "80px", background: "#cbd5e1" }} />
+              </div>
+
+              {/* Unipository Glass Pane */}
+              <div style={{ flex: 1, margin: "0 40px", background: "rgba(186, 230, 253, 0.3)", borderRadius: "60px", border: "2px solid white", position: "relative", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "inset 0 0 80px rgba(255,255,255,0.9)" }}>
+                 <span style={{ position: "absolute", bottom: "40px", left: "50px", fontSize: "12px", fontWeight: 900, color: "#0c4a6e", textTransform: "uppercase" }}>Conditions</span>
+                 
+                 <div style={{ textAlign: "center" }}>
+                    <h4 style={{ fontSize: "14px", fontWeight: 900, color: "#0284c7", textTransform: "uppercase", letterSpacing: "0.5em", marginBottom: "16px" }}>Unipository Glass Pane</h4>
+                    <h3 style={{ fontSize: "64px", fontWeight: 900, color: "#0c4a6e", textTransform: "uppercase", margin: 0 }}>{activeTheme}</h3>
+                 </div>
+                 
+                 <span style={{ position: "absolute", bottom: "40px", right: "50px", fontSize: "12px", fontWeight: 900, color: "#0c4a6e", textTransform: "uppercase" }}>Study Tools</span>
+              </div>
+
+              {/* Footer: Horizontal Navigation */}
+              <footer style={{ height: "120px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <span style={{ fontWeight: 900, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.3em", color: "#64748b" }}>Horizontal Navigation (Themes)</span>
+              </footer>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </div>
+  );
+}
+
+function Multipository({ theme, x, y, color, onSelect }) {
+  return (
+    <motion.div 
+      style={{ position: "absolute", left: "50%", top: "50%", x: x, y: y, cursor: "pointer" }}
+      whileHover={{ scale: 1.05 }}
+      onClick={() => onSelect(theme)}
+    >
+      <div style={{ 
+        width: "380px", height: "380px", borderRadius: "50%", 
+        background: `radial-gradient(circle at 30% 30%, white 0%, ${color}20 100%)`,
+        border: `3px solid ${color}40`, display: "flex", alignItems: "center", justifyContent: "center",
+        boxShadow: `0 30px 60px ${color}10`
+      }}>
+        <h3 style={{ fontSize: "28px", fontWeight: 900, color: "#0c4a6e", textTransform: "uppercase" }}>{theme}</h3>
+      </div>
+    </motion.div>
+  );
+}
