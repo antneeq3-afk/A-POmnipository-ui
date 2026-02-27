@@ -1,0 +1,151 @@
+import React, { useState, useEffect } from "react";
+import { motion, AnimatePresence, useSpring, useTransform, useMotionValue } from "framer-motion";
+
+export default function OmnipositoryMaster() {
+  const [activeTheme, setActiveTheme] = useState(null);
+  const zoomValue = useMotionValue(0); 
+
+  const smoothZoom = useSpring(zoomValue, {
+    stiffness: 70,
+    damping: 35,
+    mass: 1
+  });
+
+  // Hero (Outer Shell) Logic
+  const heroZ = useTransform(smoothZoom, [0, 1], [0, 2500]);
+  const heroOpacity = useTransform(smoothZoom, [0, 0.45], [1, 0]);
+  
+  // INNER BUBBLES: Changed [0.4, 0.9] to [0.1, 0.7] so they appear much earlier
+  const cloudZ = useTransform(smoothZoom, [0, 1], [-4000, 0]);
+  const cloudScale = useTransform(smoothZoom, [0, 0.8], [0.05, 1.2]); 
+  const cloudOpacity = useTransform(smoothZoom, [0.1, 0.6], [0, 1]); // Starts appearing at 10% scroll
+
+  useEffect(() => {
+    const handleGlobalWheel = (e) => {
+      e.preventDefault();
+      const sensitivity = 0.0015;
+      const currentZoom = zoomValue.get();
+      const delta = e.deltaY < 0 ? sensitivity * 65 : -sensitivity * 65;
+      zoomValue.set(Math.min(Math.max(currentZoom + delta, 0), 1));
+    };
+    window.addEventListener("wheel", handleGlobalWheel, { passive: false });
+    return () => window.removeEventListener("wheel", handleGlobalWheel);
+  }, [zoomValue]);
+
+  return (
+    <div style={{ 
+      height: "100vh", width: "100vw", 
+      background: "linear-gradient(135deg, #0ea5e9 0%, #38bdf8 50%, #7dd3fc 100%)",
+      overflow: "hidden", position: "fixed", top: 0, left: 0,
+      perspective: "1200px" 
+    }}>
+      
+      {/* Background Bokeh Layer */}
+      <div style={{ position: "absolute", inset: 0, overflow: "hidden", pointerEvents: "none" }}>
+        {[...Array(12)].map((_, i) => (
+          <motion.div
+            key={i}
+            animate={{ y: [0, -30, 0], opacity: [0.1, 0.3, 0.1] }}
+            transition={{ duration: 6 + i, repeat: Infinity, ease: "easeInOut" }}
+            style={{
+              position: "absolute",
+              width: 200 + i * 40,
+              height: 200 + i * 40,
+              borderRadius: "50%",
+              background: "rgba(255, 255, 255, 0.2)",
+              filter: "blur(50px)",
+              top: `${Math.random() * 100}%`,
+              left: `${Math.random() * 100}%`,
+            }}
+          />
+        ))}
+      </div>
+
+      {/* LEVEL 0: OMNIPOSITORY SHELL */}
+      <motion.div
+        style={{
+          width: "420px", height: "420px", borderRadius: "50%",
+          position: "absolute", top: "50%", left: "50%", x: "-50%", y: "-50%",
+          background: "rgba(255, 255, 255, 0.15)",
+          backdropFilter: "blur(12px)",
+          border: "1px solid rgba(255, 255, 255, 0.5)",
+          zIndex: 10,
+          translateZ: heroZ,
+          opacity: heroOpacity,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          boxShadow: "0 50px 100px rgba(0,0,0,0.1), inset 0 0 50px rgba(255,255,255,0.4)",
+          pointerEvents: "none"
+        }}
+      >
+        <div style={{
+          position: "absolute", top: "12%", left: "15%", width: "40%", height: "30%",
+          background: "radial-gradient(circle, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0) 75%)",
+          borderRadius: "50%", transform: "rotate(-20deg)", filter: "blur(2px)"
+        }} />
+        <h1 style={{ fontSize: "28px", fontWeight: "900", color: "#ffffff", letterSpacing: "4px" }}>
+          OMNIPOSITORY
+        </h1>
+      </motion.div>
+
+      {/* LEVEL 1: TIGHT THEME CLOUD */}
+      <motion.div 
+        style={{ 
+          position: "absolute", width: "100%", height: "100%",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          translateZ: cloudZ, scale: cloudScale, opacity: cloudOpacity,
+          transformStyle: "preserve-3d"
+        }}
+      >
+        <ThemeBubble label="THEME 1" x="-180px" y="-140px" color="#10b981" onSelect={setActiveTheme} />
+        <ThemeBubble label="THEME 2" x="180px" y="-140px" color="#ef4444" onSelect={setActiveTheme} />
+        <ThemeBubble label="THEME 3" x="0px" y="160px" color="#f59e0b" onSelect={setActiveTheme} />
+      </motion.div>
+
+      {/* Detail Overlay */}
+      <AnimatePresence>
+        {activeTheme && (
+          <motion.div 
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            style={{ 
+              position: "fixed", inset: 0, zIndex: 100, backgroundColor: "rgba(255,255,255,0.96)",
+              display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+              backdropFilter: "blur(25px)"
+            }}
+          >
+            <h2 style={{ fontSize: "64px", fontWeight: "900", color: "#0ea5e9" }}>{activeTheme}</h2>
+            <button onClick={() => setActiveTheme(null)} style={{ marginTop: "40px", padding: "12px 35px", borderRadius: "30px", border: "2px solid #0ea5e9", color: "#0ea5e9", background: "none", fontWeight: "900", cursor: "pointer" }}>BACK</button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function ThemeBubble({ label, x, y, color, onSelect }) {
+  return (
+    <motion.div 
+      style={{ position: "absolute", x, y, cursor: "pointer", transformStyle: "preserve-3d" }}
+      whileHover={{ scale: 1.05, translateZ: "50px" }}
+      onClick={() => onSelect(label)}
+    >
+      <div style={{ 
+        width: "320px", height: "320px", borderRadius: "50%", 
+        background: `radial-gradient(circle at 35% 35%, rgba(255,255,255,0.4) 0%, ${color}66 100%)`,
+        backdropFilter: "blur(8px)",
+        border: `2px solid ${color}66`,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        boxShadow: `0 40px 80px rgba(0,0,0,0.15), inset 0 0 50px rgba(255,255,255,0.5), 0 0 30px ${color}33`,
+        position: "relative"
+      }}>
+        <div style={{
+          position: "absolute", top: "10%", left: "15%", width: "40%", height: "30%",
+          background: "radial-gradient(circle, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0) 80%)",
+          borderRadius: "50%", transform: "rotate(-20deg)"
+        }} />
+        <h3 style={{ fontSize: "24px", fontWeight: "900", color: "#ffffff", textShadow: "0 2px 8px rgba(0,0,0,0.3)" }}>
+          {label}
+        </h3>
+      </div>
+    </motion.div>
+  );
+}
