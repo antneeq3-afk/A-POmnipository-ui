@@ -1,0 +1,167 @@
+import React, { useState, useEffect, useCallback, useRef } from "react";
+
+export default function BalancedFloatingNavStage() {
+  const [path, setPath] = useState([0]); 
+  const [isAnimating, setIsAnimating] = useState(false);
+  const scrollAccumulator = useRef(0);
+
+  const currentLevel = path.length - 1;
+  const currentThemeIdx = path[currentLevel];
+
+  const getThemeAesthetics = (num, level) => {
+    if (level === 0) {
+      return { color: "rgba(14, 165, 233, 0.8)", glow: "rgba(186, 230, 253, 0.4)", label: "named OPT" };
+    }
+    const palette = [
+      { color: "rgba(239, 68, 68, 0.9)", glow: "rgba(239, 68, 68, 0.4)", label: "Theme 1" },
+      { color: "rgba(202, 138, 4, 0.9)",  glow: "rgba(250, 204, 21, 0.4)", label: "Theme 2" },
+      { color: "rgba(37, 99, 235, 0.9)",  glow: "rgba(37, 99, 235, 0.4)", label: "Theme 3" },
+      { color: "rgba(234, 88, 12, 0.9)",  glow: "rgba(249, 115, 22, 0.4)", label: "Theme 4" }
+    ];
+    return palette[(num - 1) % 4];
+  };
+
+  const aesthetics = getThemeAesthetics(currentThemeIdx, currentLevel);
+
+  const jumpToLevel = (levelIndex) => {
+    if (isAnimating || levelIndex === currentLevel) return;
+    setIsAnimating(true);
+    setPath(prev => prev.slice(0, levelIndex + 1));
+    setTimeout(() => { setIsAnimating(false); scrollAccumulator.current = 0; }, 850);
+  };
+
+  const triggerNextLevel = useCallback(() => {
+    if (isAnimating || currentLevel >= 4) return;
+    setIsAnimating(true);
+    setPath(prev => [...prev, 1]);
+    setTimeout(() => { setIsAnimating(false); scrollAccumulator.current = 0; }, 850); 
+  }, [isAnimating, currentLevel]);
+
+  const triggerPreviousLevel = useCallback(() => {
+    if (isAnimating || currentLevel === 0) return;
+    setIsAnimating(true);
+    setPath(prev => prev.slice(0, -1));
+    setTimeout(() => { setIsAnimating(false); scrollAccumulator.current = 0; }, 850);
+  }, [isAnimating, currentLevel]);
+
+  const handleScroll = useCallback((e) => {
+    if (isAnimating) return;
+    if (e.deltaY < 0) {
+      scrollAccumulator.current += Math.abs(e.deltaY);
+      if (scrollAccumulator.current > 60) triggerNextLevel();
+    } else if (e.deltaY > 0) {
+      scrollAccumulator.current += Math.abs(e.deltaY);
+      if (scrollAccumulator.current > 60) triggerPreviousLevel();
+    }
+  }, [isAnimating, triggerNextLevel, triggerPreviousLevel]);
+
+  useEffect(() => {
+    window.addEventListener("wheel", handleScroll);
+    return () => window.removeEventListener("wheel", handleScroll);
+  }, [handleScroll]);
+
+  return (
+    <div style={stageContainer}>
+      <style>
+        {`
+          @keyframes snapZoomPop {
+            0% { transform: scale(0.4); opacity: 0; filter: blur(15px); }
+            100% { transform: scale(1); opacity: 1; filter: blur(0px); }
+          }
+          .sphere-shell { 
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.6s ease;
+            border: none !important; 
+          }
+          .sphere-shell:hover {
+            transform: scale(1.04) !important;
+            box-shadow: inset 0 0 120px var(--glow-color), 0 20px 100px -20px var(--glow-color) !important;
+          }
+          .nav-item { transition: all 0.2s ease; cursor: pointer; padding: 4px 10px; border-radius: 8px; font-family: sans-serif; }
+          .nav-item:hover { background: rgba(0,0,0,0.03); color: #0ea5e9 !important; }
+        `}
+      </style>
+
+      {/* FIXED CORNER HUD */}
+      <div style={cornerHUDLeft}><div style={searchContainer}><div style={searchIcon} /><span style={{opacity: 0.4, fontWeight: 600}}>SEARCH</span></div></div>
+      <div style={cornerHUDRight}><div style={compassCircle}><div style={compassNeedle} /><span style={compassText}>N</span></div></div>
+
+      {/* TOP NAV: Reverted to Floating Pill Design */}
+      <header style={headerArea}>
+        <div style={navPaneContainer}>
+          <span className="nav-item" style={navRoot} onClick={() => jumpToLevel(0)}>named OPT</span>
+          {path.slice(1).map((_, idx) => {
+            const targetLevel = idx + 1;
+            const isActive = targetLevel === currentLevel;
+            return (
+              <React.Fragment key={idx}>
+                <span style={navSeparator}>&gt;</span>
+                <span className="nav-item" onClick={() => jumpToLevel(targetLevel)} style={isActive ? navActive : navPrevious}>
+                  Level {targetLevel}
+                </span>
+              </React.Fragment>
+            );
+          })}
+        </div>
+      </header>
+
+      {/* CENTERED VIEWPORT */}
+      <main style={mainViewport}>
+        <div 
+          key={path.length + "-" + currentThemeIdx} 
+          className="sphere-shell"
+          style={{
+            ...sphereBase,
+            "--glow-color": aesthetics.glow,
+            background: `
+              radial-gradient(circle at 30% 30%, rgba(255,255,255,0.7) 0%, transparent 40%),
+              radial-gradient(circle at 50% 50%, transparent 50%, ${aesthetics.glow} 95%)
+            `,
+            boxShadow: `inset 0 0 80px ${aesthetics.glow}, 0 10px 60px -15px ${aesthetics.glow}`,
+            animation: "snapZoomPop 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards",
+            pointerEvents: isAnimating ? 'none' : 'auto',
+            cursor: "pointer"
+          }}
+        >
+          <div style={textWrapper}>
+            <h1 style={{ ...(currentLevel === 0 ? brandTitle : themeTitle), color: aesthetics.color, textShadow: "0 2px 15px rgba(255,255,255,0.4)" }}>
+              {aesthetics.label}
+            </h1>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}
+
+// --- STYLES ---
+const stageContainer = { position: "fixed", inset: 0, backgroundColor: "#fcfcfc", overflow: "hidden", display: "flex", flexDirection: "column" };
+
+// HeaderArea acts as the top "buffer" for the centering logic
+const headerArea = { height: "140px", display: "flex", alignItems: "center", justifyContent: "center", position: "relative", zIndex: 2000 };
+
+const navPaneContainer = { 
+  display: "flex", alignItems: "center", padding: "10px 25px", 
+  background: "rgba(255,255,255,0.85)", backdropFilter: "blur(20px)", 
+  borderRadius: "30px", border: "1px solid rgba(0,0,0,0.05)",
+  boxShadow: "0 4px 15px rgba(0,0,0,0.02)"
+};
+
+const mainViewport = { flex: 1, display: "flex", alignItems: "center", justifyContent: "center", position: "relative", paddingBottom: "40px" };
+
+const navRoot = { fontSize: "0.65rem", fontWeight: "800", color: "#64748b", textTransform: "uppercase", letterSpacing: "1px" };
+const navPrevious = { fontSize: "0.65rem", color: "#94a3b8", fontWeight: "500" };
+const navActive = { fontSize: "0.65rem", fontWeight: "900", color: "#0ea5e9" };
+const navSeparator = { margin: "0 8px", color: "#cbd5e1", fontSize: "0.8rem", pointerEvents: "none" };
+
+const cornerHUDLeft = { position: "absolute", top: "40px", left: "40px", zIndex: 3000 };
+const cornerHUDRight = { position: "absolute", top: "40px", right: "40px", zIndex: 3000 };
+const searchContainer = { width: "160px", padding: "12px", borderRadius: "12px", background: "white", border: "1px solid #f1f5f9", fontSize: "0.6rem", display: "flex", gap: "12px", alignItems: "center", boxShadow: "0 4px 20px rgba(0,0,0,0.04)" };
+const searchIcon = { width: "8px", height: "8px", borderRadius: "50%", border: "1.5px solid #cbd5e1" };
+const compassCircle = { width: "50px", height: "50px", borderRadius: "50%", background: "white", border: "1px solid #f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", position: "relative", boxShadow: "0 4px 20px rgba(0,0,0,0.04)" };
+const compassNeedle = { width: "2px", height: "18px", background: "#ef4444", transform: "rotate(45deg)", borderRadius: "2px" };
+const compassText = { position: "absolute", top: "6px", fontSize: "0.45rem", fontWeight: "900", color: "#94a3b8" };
+
+const sphereBase = { width: "480px", height: "480px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" };
+const textWrapper = { textAlign: "center", pointerEvents: "none", width: "100%" };
+const brandTitle = { fontSize: "4.5rem", fontWeight: "900", margin: 0, textTransform: "uppercase", letterSpacing: "-3px", fontFamily: "sans-serif" };
+const themeTitle = { fontSize: "4rem", fontWeight: "800", margin: 0, letterSpacing: "-1px", fontFamily: "sans-serif" };
