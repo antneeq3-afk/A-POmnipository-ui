@@ -1,0 +1,107 @@
+import React, { useEffect, useState } from "react";
+
+const BUBBLE_COUNT = 150;
+
+export default function CleanUnderwaterStage() {
+  const [bubbles, setBubbles] = useState([]);
+
+  useEffect(() => {
+    const initialBubbles = Array.from({ length: BUBBLE_COUNT }).map((_, i) => ({
+      id: i,
+      x: Math.random() * 100,
+      y: Math.random() * 100,
+      size: Math.random() > 0.3 ? Math.random() * 60 + 30 : Math.random() * 20 + 5,
+      opacity: Math.random() * 0.2 + 0.1,
+      duration: 45 + Math.random() * 45, // Calm, slow drift
+      delay: Math.random() * -90, 
+    }));
+    setBubbles(initialBubbles);
+  }, []);
+
+  return (
+    <div style={stageContainer}>
+      <style>
+        {`
+          @keyframes slowFloat {
+            0% { transform: translate(-50%, -50%) translate(0, 0); }
+            33% { transform: translate(-50%, -50%) translate(2vw, 4vh); }
+            66% { transform: translate(-50%, -50%) translate(-1vw, 8vh); }
+            100% { transform: translate(-50%, -50%) translate(0, 0); }
+          }
+        `}
+      </style>
+
+      {/* 1. Deep Sea Backdrop */}
+      <div style={originalGradientBackdrop} />
+
+      {/* 2. Moving Bubble Overlay */}
+      <div style={bubbleOverlay}>
+        {bubbles.map((b) => (
+          <div
+            key={b.id}
+            style={{
+              position: "absolute",
+              left: `${b.x}%`,
+              top: `${b.y}%`,
+              width: b.size,
+              height: b.size,
+              borderRadius: "50%",
+              // Hollow glass style prevents "white spot" stacking
+              background: "radial-gradient(circle at 35% 30%, rgba(255,255,255,0.2) 0%, transparent 60%)",
+              boxShadow: "inset -4px -4px 12px rgba(255,255,255,0.1), inset 2px 2px 8px rgba(255,255,255,0.15)",
+              border: `0.8px solid rgba(255,255,255,0.2)`,
+              opacity: b.opacity,
+              zIndex: 5,
+              animation: `slowFloat ${b.duration}s ease-in-out ${b.delay}s infinite`,
+            }}
+          />
+        ))}
+        {/* Subtle texture for organic feel */}
+        <div style={cellularTexture} />
+      </div>
+
+      {/* 3. Surface Light Wash (No glitched "spot") */}
+      <div style={linearSurfaceWash} />
+    </div>
+  );
+}
+
+// --- STYLES ---
+const stageContainer = {
+  position: "fixed",
+  inset: 0,
+  overflow: "hidden",
+  background: "#075985",
+};
+
+const originalGradientBackdrop = {
+  position: "absolute",
+  inset: 0,
+  zIndex: 1,
+  background: "linear-gradient(to bottom, #7dd3fc 0%, #0ea5e9 35%, #0369a1 75%, #075985 100%)",
+};
+
+const bubbleOverlay = {
+  position: "absolute",
+  inset: 0,
+  zIndex: 10,
+  pointerEvents: "none",
+};
+
+const cellularTexture = {
+  position: "absolute",
+  inset: 0,
+  zIndex: 11,
+  backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='b'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.05' numOctaves='2'/%3E%3CfeDiffuseLighting surfaceScale='2'%3E%3CfeDistantLight azimuth='45' elevation='45'/%3E%3C/feDiffuseLighting%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23b)' opacity='0.1'/%3E%3C/svg%3E")`,
+  backgroundSize: "400px 400px",
+  mixBlendMode: "overlay",
+  opacity: 0.1,
+};
+
+const linearSurfaceWash = {
+  position: "absolute",
+  inset: 0,
+  zIndex: 15,
+  background: "linear-gradient(to bottom, rgba(255,255,255,0.3) 0%, transparent 50%)",
+  pointerEvents: "none",
+};
