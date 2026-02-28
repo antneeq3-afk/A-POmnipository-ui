@@ -1,0 +1,113 @@
+import React from "react";
+
+export default function HighDensityAquaticStage() {
+  // We increase the density to 100 bubbles to get that 'clustered' look
+  const bubbleCluster = Array.from({ length: 100 }).map((_, i) => ({
+    id: i,
+    size: Math.random() * 60 + 15,
+    x: Math.random() * 100,
+    y: Math.random() * 100,
+    // Varying opacity creates the "near and far" cluster effect
+    opacity: Math.random() * 0.6 + 0.1,
+  }));
+
+  return (
+    <div style={stageContainer}>
+      {/* LAYER 1: THE ORIGINAL DEEP GRADIENT BACKDROP */}
+      <div style={originalGradientBackdrop} />
+
+      {/* LAYER 2: THE HIGH-DENSITY BUBBLE OVERLAY */}
+      <div style={bubbleOverlay}>
+        {bubbleCluster.map((b) => (
+          <div
+            key={b.id}
+            style={{
+              position: "absolute",
+              left: `${b.x}%`,
+              top: `${b.y}%`,
+              width: b.size,
+              height: b.size,
+              borderRadius: "50%",
+              // Strong specular highlights for 'front of screen' feel
+              background:
+                "radial-gradient(circle at 35% 35%, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0.1) 40%, transparent 80%)",
+              border: "1.2px solid rgba(255,255,255,0.5)",
+              opacity: b.opacity,
+              zIndex: 5,
+            }}
+          />
+        ))}
+
+        {/* The Cellular Texture remains for that "fizzy" background detail */}
+        <div style={cellularTexture} />
+      </div>
+
+      {/* LIGHTING & NAVIGATION */}
+      <div style={surfaceLight} />
+      <div style={labelStyle}>
+        THE SKELETON
+        <br />
+        <span style={{ fontSize: "0.8rem", opacity: 1, fontWeight: 500 }}>
+          PART 1: HIGH-DENSITY CLUSTER MASTER
+        </span>
+      </div>
+    </div>
+  );
+}
+
+// --- STYLES ---
+
+const stageContainer = {
+  position: "fixed",
+  inset: 0,
+  overflow: "hidden",
+  fontFamily: "sans-serif",
+};
+
+const originalGradientBackdrop = {
+  position: "absolute",
+  inset: 0,
+  zIndex: 1,
+  // Reverted to your preferred deep blue gradient
+  background:
+    "linear-gradient(to bottom, #7dd3fc 0%, #0ea5e9 35%, #0369a1 75%, #075985 100%)",
+};
+
+const bubbleOverlay = {
+  position: "absolute",
+  inset: 0,
+  zIndex: 10,
+  pointerEvents: "none",
+};
+
+const cellularTexture = {
+  position: "absolute",
+  inset: 0,
+  zIndex: 11,
+  // High-frequency cellular pattern for background fizz
+  backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='b'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.05' numOctaves='2'/%3E%3CfeDiffuseLighting surfaceScale='3'%3E%3CfeDistantLight azimuth='45' elevation='45'/%3E%3C/feDiffuseLighting%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23b)' opacity='0.2'/%3E%3C/svg%3E")`,
+  backgroundSize: "400px 400px",
+  mixBlendMode: "color-dodge",
+  opacity: 0.3,
+};
+
+const surfaceLight = {
+  position: "absolute",
+  inset: 0,
+  zIndex: 15,
+  background:
+    "radial-gradient(circle at 50% -10%, rgba(255,255,255,0.5) 0%, transparent 60%)",
+  pointerEvents: "none",
+};
+
+const labelStyle = {
+  position: "absolute",
+  bottom: "60px",
+  width: "100%",
+  textAlign: "center",
+  color: "white",
+  letterSpacing: "4px",
+  fontWeight: "900",
+  zIndex: 20,
+  textShadow: "0 2px 10px rgba(0,0,0,0.5)",
+};
