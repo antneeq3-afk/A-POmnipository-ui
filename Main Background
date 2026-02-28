@@ -1,0 +1,73 @@
+import React from "react";
+
+export default function PhysicsRefractiveStage() {
+  return (
+    <div style={stageContainer}>
+      {/* 1. The Deep Sea Base Gradient */}
+      <div style={originalGradientBackdrop} />
+
+      {/* 2. The Micro-Texture Overlay (Fractal Noise) */}
+      <div style={cellularTexture} />
+
+      {/* 3. THE FIX: Linear Surface Wash (Banishes the white "spot" in the corner) */}
+      <div style={fixedSurfaceLight} />
+
+      {/* 4. Branding/Label Layer */}
+      <div style={labelStyle}>
+        THE SKELETON
+        <br />
+        <span style={{ fontSize: "0.8rem", opacity: 1, fontWeight: 500 }}>
+          PART 1: CLEAN PHYSICS STAGE
+        </span>
+      </div>
+    </div>
+  );
+}
+
+// --- STYLES ---
+const stageContainer = {
+  position: "fixed",
+  inset: 0,
+  overflow: "hidden",
+  background: "#075985",
+};
+
+const originalGradientBackdrop = {
+  position: "absolute",
+  inset: 0,
+  zIndex: 1,
+  background:
+    "linear-gradient(to bottom, #7dd3fc 0%, #0ea5e9 35%, #0369a1 75%, #075985 100%)",
+};
+
+const cellularTexture = {
+  position: "absolute",
+  inset: 0,
+  zIndex: 11,
+  // This provides that "organic" underwater shimmer
+  backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='b'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.05' numOctaves='2'/%3E%3CfeDiffuseLighting surfaceScale='2'%3E%3CfeDistantLight azimuth='45' elevation='45'/%3E%3C/feDiffuseLighting%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23b)' opacity='0.1'/%3E%3C/svg%3E")`,
+  backgroundSize: "400px 400px",
+  mixBlendMode: "overlay",
+  opacity: 0.1,
+};
+
+const fixedSurfaceLight = {
+  position: "absolute",
+  inset: 0,
+  zIndex: 15,
+  // Replaced the radial-gradient "spot" with a linear-gradient "wash"
+  background:
+    "linear-gradient(to bottom, rgba(255,255,255,0.3) 0%, transparent 45%)",
+  pointerEvents: "none",
+};
+
+const labelStyle = {
+  position: "absolute",
+  bottom: "60px",
+  width: "100%",
+  textAlign: "center",
+  color: "white",
+  letterSpacing: "4px",
+  fontWeight: "900",
+  zIndex: 20,
+};
