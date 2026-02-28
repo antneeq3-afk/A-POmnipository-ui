@@ -1,0 +1,415 @@
+import React, { useState, useEffect, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+
+// --- 1. STANDARDIZED DATA ---
+const ALL_AIDS = ["conditions", "res_tr", "study", "res_br"];
+const OMNI_DATA = {
+  id: "L0",
+  tNum: 0,
+  label: "START",
+  color: "#4A6984",
+  children: [
+    {
+      id: "L1_T1",
+      tNum: 1,
+      color: "#ef4444",
+      children: [
+        { id: "L2_T1_C1", tNum: 1, color: "#ef4444", aids: ALL_AIDS },
+        { id: "L2_T1_C2", tNum: 2, color: "#facc15", aids: ALL_AIDS },
+      ],
+    },
+    {
+      id: "L1_T2",
+      tNum: 2,
+      color: "#3b82f6",
+      children: [
+        { id: "L2_T2_C1", tNum: 1, color: "#3b82f6", aids: ALL_AIDS },
+        { id: "L2_T2_C2", tNum: 2, color: "#60a5fa", aids: ALL_AIDS },
+      ],
+    },
+  ],
+};
+
+// --- 2. COMPONENTS ---
+
+function GlobalTool({ pos, icon }) {
+  return (
+    <div
+      style={{
+        position: "absolute",
+        ...pos,
+        zIndex: 3000,
+        width: "50px",
+        height: "50px",
+        borderRadius: "15px",
+        background: "rgba(255, 255, 255, 0.15)",
+        backdropFilter: "blur(10px)",
+        border: "1px solid rgba(255, 255, 255, 0.2)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        color: "white",
+        fontSize: "1.2rem",
+      }}
+    >
+      {icon}
+    </div>
+  );
+}
+
+function CornerAid({ pos, icon, active }) {
+  return (
+    <motion.div
+      whileHover={
+        active
+          ? {
+              backgroundColor: "rgba(255,255,255,0.12)",
+              backdropFilter: "blur(8px)",
+            }
+          : {}
+      }
+      style={{
+        position: "absolute",
+        ...pos,
+        width: "110px",
+        height: "110px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontSize: "2.2rem",
+        borderRadius: "30px",
+        transition: "all 0.3s ease",
+        cursor: active ? "pointer" : "default",
+        zIndex: 5000,
+      }}
+    >
+      <span
+        style={{
+          opacity: active ? 1 : 0.08,
+          filter: active ? "none" : "grayscale(100%) blur(1px)",
+        }}
+      >
+        {icon}
+      </span>
+    </motion.div>
+  );
+}
+
+function Bubble({
+  label,
+  color,
+  x,
+  size,
+  isTarget,
+  isZooming,
+  onHover,
+  onLeave,
+  onOpen,
+  onDoubleClick,
+  direction,
+}) {
+  return (
+    <motion.div
+      onMouseEnter={onHover}
+      onMouseLeave={onLeave}
+      onDoubleClick={onDoubleClick}
+      initial={{
+        opacity: 0,
+        scale: direction === 1 ? 0 : 2,
+        x: x - size / 2,
+        y: -(size / 2),
+      }}
+      animate={{
+        opacity: 1,
+        scale: isZooming ? 4 : isTarget ? 1.05 : 1,
+        x: x - size / 2,
+        y: -(size / 2),
+      }}
+      exit={{ opacity: 0, scale: direction === 1 ? 5 : 0 }}
+      transition={{ duration: 0.6, ease: "easeInOut" }}
+      style={{
+        position: "absolute",
+        left: "50%",
+        top: "50%",
+        width: size,
+        height: size,
+        borderRadius: "50%",
+        background: `radial-gradient(circle at 30% 30%, rgba(255,255,255,0.4), ${color})`,
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        cursor: "pointer",
+        zIndex: isZooming ? 6000 : 10,
+        pointerEvents: "auto",
+      }}
+    >
+      <h3
+        style={{
+          color: "white",
+          margin: 0,
+          fontSize: size > 400 ? "3.5rem" : "1.5rem",
+          userSelect: "none",
+        }}
+      >
+        {label}
+      </h3>
+      {isTarget && label !== "START" && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onOpen();
+          }}
+          style={{
+            marginTop: "15px",
+            padding: "8px 20px",
+            borderRadius: "20px",
+            border: "none",
+            background: "white",
+            color: "black",
+            fontWeight: "bold",
+            cursor: "pointer",
+          }}
+        >
+          CONTENT
+        </button>
+      )}
+    </motion.div>
+  );
+}
+
+// --- 3. MAIN APP ---
+
+export default function OmnipositoryUI() {
+  const [level, setLevel] = useState(0);
+  const [currentNode, setCurrentNode] = useState(OMNI_DATA);
+  const [history, setHistory] = useState([]);
+  const [activeBranchId, setActiveBranchId] = useState(null);
+  const [isLocked, setIsLocked] = useState(false);
+  const [showPane, setShowPane] = useState(false);
+  const [selectedBubble, setSelectedBubble] = useState(null);
+  const [direction, setDirection] = useState(1);
+  const [zoomingNodeId, setZoomingNodeId] = useState(null);
+
+  const EDGE_MARGIN = "25px";
+  const UPT_INSET = "120px";
+  // Moved closer to UPT (85px instead of 72.5px)
+  const DISMISSAL_POS = "85px";
+
+  const handleClosePane = useCallback(() => {
+    setShowPane(false);
+    setSelectedBubble(null);
+  }, []);
+  const handleZoomOut = useCallback(() => {
+    if (level > 0 && !isLocked) {
+      setDirection(-1);
+      setIsLocked(true);
+      const prevNode = history[history.length - 1];
+      setHistory((prev) => prev.slice(0, -1));
+      setCurrentNode(prevNode);
+      setLevel((prev) => prev - 1);
+      setTimeout(() => setIsLocked(false), 800);
+    }
+  }, [level, isLocked, history]);
+
+  const handleZoomIn = useCallback(
+    (forcedTargetId = null) => {
+      if (isLocked || showPane || level >= 2) return;
+      let targetNode =
+        level === 0
+          ? OMNI_DATA.children[0]
+          : (currentNode.children || []).find(
+              (c) => c.id === (forcedTargetId || activeBranchId)
+            );
+      if (!targetNode) return;
+      setZoomingNodeId(forcedTargetId || activeBranchId || OMNI_DATA.id);
+      setDirection(1);
+      setIsLocked(true);
+      setTimeout(() => {
+        setHistory((prev) => [...prev, currentNode]);
+        setCurrentNode(targetNode);
+        setLevel((prev) => prev + 1);
+        setActiveBranchId(null);
+        setZoomingNodeId(null);
+        setTimeout(() => setIsLocked(false), 800);
+      }, 400);
+    },
+    [level, isLocked, showPane, activeBranchId, currentNode]
+  );
+
+  useEffect(() => {
+    const onWheel = (e) => {
+      e.deltaY < -30 ? handleZoomIn() : e.deltaY > 30 && handleZoomOut();
+    };
+    window.addEventListener("wheel", onWheel, { passive: false });
+    return () => window.removeEventListener("wheel", onWheel);
+  }, [handleZoomIn, handleZoomOut]);
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "radial-gradient(circle, #38bdf8, #0284c7)",
+        overflow: "hidden",
+        fontFamily: "sans-serif",
+      }}
+    >
+      <GlobalTool pos={{ top: EDGE_MARGIN, left: EDGE_MARGIN }} icon="🔍" />
+      <GlobalTool pos={{ top: EDGE_MARGIN, right: EDGE_MARGIN }} icon="🧭" />
+
+      {/* DISMISSAL: Borderless, Red X, repositioned closer to UPT */}
+      <AnimatePresence>
+        {showPane && (
+          <motion.button
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            onClick={handleClosePane}
+            style={{
+              position: "absolute",
+              top: DISMISSAL_POS,
+              right: DISMISSAL_POS,
+              zIndex: 4500,
+              width: "48px",
+              height: "48px",
+              borderRadius: "14px",
+              background: "rgba(255, 255, 255, 0.22)",
+              backdropFilter: "blur(12px)",
+              border: "none",
+              color: "#ef4444",
+              fontSize: "1.4rem",
+              fontWeight: "900",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+            whileHover={{ backgroundColor: "rgba(255, 255, 255, 0.35)" }}
+          >
+            ✕
+          </motion.button>
+        )}
+      </AnimatePresence>
+
+      <motion.div
+        animate={{
+          opacity: showPane ? 0.05 : 1,
+          filter: showPane ? "blur(30px)" : "none",
+        }}
+        style={{
+          width: "100vw",
+          height: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <AnimatePresence mode="popLayout" custom={direction}>
+          {!showPane &&
+            (level === 0 ? [OMNI_DATA] : currentNode.children || []).map(
+              (node, i) => (
+                <Bubble
+                  key={node.id + level}
+                  label={node.tNum === 0 ? "START" : "THEME " + node.tNum}
+                  color={node.color}
+                  x={
+                    level === 0
+                      ? 0
+                      : (i - (currentNode.children.length - 1) / 2) * 350
+                  }
+                  size={level === 0 ? 450 : 280}
+                  isTarget={activeBranchId === node.id || level === 0}
+                  isZooming={zoomingNodeId === node.id}
+                  onHover={() => level !== 0 && setActiveBranchId(node.id)}
+                  onLeave={() => setActiveBranchId(null)}
+                  onOpen={() => {
+                    setSelectedBubble(node);
+                    setShowPane(true);
+                  }}
+                  onDoubleClick={() => handleZoomIn(node.id)}
+                  direction={direction}
+                />
+              )
+            )}
+        </AnimatePresence>
+      </motion.div>
+
+      {/* UPT LAYER */}
+      <AnimatePresence>
+        {showPane && selectedBubble && (
+          <div style={{ position: "absolute", inset: 0, zIndex: 4000 }}>
+            {/* MAIN PANE */}
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              style={{
+                position: "absolute",
+                inset: UPT_INSET,
+                background: "rgba(255, 255, 255, 0.08)",
+                backdropFilter: "blur(50px)",
+                borderRadius: "50px",
+                border: "1px solid rgba(255, 255, 255, 0.2)",
+                overflow: "hidden",
+              }}
+            >
+              {/* HEADER: Small and top-centered */}
+              <div
+                style={{
+                  width: "100%",
+                  textAlign: "center",
+                  paddingTop: "25px",
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: "1.2rem",
+                    fontWeight: 800,
+                    color: selectedBubble.color,
+                    textShadow: `0 0 10px ${selectedBubble.color}66`,
+                    letterSpacing: "2px",
+                    opacity: 0.8,
+                  }}
+                >
+                  UNIT ({level}, {selectedBubble.tNum})
+                </span>
+              </div>
+
+              {/* CONTENT AREA: Large and clear */}
+              <div
+                style={{ padding: "40px", color: "white", fontSize: "1.1rem" }}
+              >
+                <p style={{ opacity: 0.6 }}>
+                  Insert module content or medical resources here...
+                </p>
+              </div>
+            </motion.div>
+
+            {/* CORNER AIDS */}
+            <CornerAid
+              pos={{ top: UPT_INSET, left: UPT_INSET }}
+              icon="🏥"
+              active={true}
+            />
+            <CornerAid
+              pos={{ top: UPT_INSET, right: UPT_INSET }}
+              icon="📁"
+              active={true}
+            />
+            <CornerAid
+              pos={{ bottom: UPT_INSET, left: UPT_INSET }}
+              icon="📚"
+              active={true}
+            />
+            <CornerAid
+              pos={{ bottom: UPT_INSET, right: UPT_INSET }}
+              icon="📂"
+              active={true}
+            />
+          </div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
