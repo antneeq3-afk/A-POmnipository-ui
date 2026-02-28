@@ -1,0 +1,166 @@
+import React, { useState, useEffect } from "react";
+import { motion, useTransform, useMotionValue, useSpring, AnimatePresence } from "framer-motion";
+
+const OMNI_DATA = {
+  id: "L0",
+  tNum: 0,
+  label: "START",
+  color: "#e0f2fe", 
+  children: [
+    {
+      id: "L1_T1",
+      tNum: 1,
+      color: "#ef4444",
+      children: [
+        { id: "L2_T1_C1", tNum: 1, color: "#ef4444" },
+        { id: "L2_T1_C2", tNum: 2, color: "#facc15" }
+      ]
+    },
+    {
+      id: "L1_T2",
+      tNum: 2,
+      color: "#facc15",
+      children: [
+        { id: "L2_T2_C1", tNum: 3, color: "#3b82f6" }, 
+        { id: "L2_T2_C2", tNum: 4, color: "#22c55e" }, 
+        { id: "L2_T2_C3", tNum: 5, color: "#f97316" }  
+      ]
+    }
+  ]
+};
+
+export default function OmnipositoryUI() {
+  const [level, setLevel] = useState(0);
+  const [currentNode, setCurrentNode] = useState(OMNI_DATA);
+  const [activeBranchId, setActiveBranchId] = useState(null);
+  const [history, setHistory] = useState([]);
+  const [isLocked, setIsLocked] = useState(false);
+
+  const progress = useMotionValue(0);
+  const smoothProgress = useSpring(progress, { stiffness: 90, damping: 25 });
+  const zoomScale = useTransform(smoothProgress, [0, 1], [1, 12]);
+  const zoomOpacity = useTransform(smoothProgress, [0, 0.2, 0.8, 1], [1, 1, 0, 0]);
+
+  useEffect(() => {
+    const handleWheel = (e) => {
+      if (isLocked) return;
+      if (e.deltaY < -30 && level < 2) {
+        const target = (currentNode.children || []).find(c => c.id === activeBranchId);
+        if (!target && level !== 0) return;
+        setIsLocked(true);
+        progress.set(1);
+        setTimeout(() => {
+          setHistory(h => [...h, currentNode]);
+          setCurrentNode(level === 0 ? OMNI_DATA : target);
+          setLevel(l => l + 1);
+          setActiveBranchId(null);
+          progress.jump(0);
+          setIsLocked(false);
+        }, 600);
+      } else if (e.deltaY > 30 && level > 0) {
+        setIsLocked(true);
+        progress.jump(1.5);
+        setTimeout(() => {
+          const prev = history[history.length - 1];
+          setCurrentNode(prev);
+          setHistory(h => h.slice(0, -1));
+          setLevel(l => l - 1);
+          progress.set(0);
+          setTimeout(() => setIsLocked(false), 600);
+        }, 20);
+      }
+    };
+    window.addEventListener("wheel", handleWheel, { passive: false });
+    return () => window.removeEventListener("wheel", handleWheel);
+  }, [level, isLocked, activeBranchId, currentNode, history, progress]);
+
+  const displayNodes = level === 0 ? [OMNI_DATA] : (currentNode.children || []);
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "radial-gradient(circle at center, #38bdf8 0%, #0284c7 100%)", overflow: "hidden", fontFamily: "sans-serif" }}>
+      
+      {/* BREADCRUMB GLASS PANE */}
+      <AnimatePresence>
+        {level > 0 && (
+          <motion.div 
+            initial={{ y: -100, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: -100, opacity: 0 }}
+            style={{
+              position: "absolute", top: 20, left: "50%", x: "-50%",
+              width: "auto", minWidth: "400px", padding: "12px 25px", borderRadius: "20px",
+              background: "rgba(255, 255, 255, 0.12)", backdropFilter: "blur(15px)",
+              border: "1px solid rgba(255, 255, 255, 0.2)", zIndex: 100,
+              textAlign: "center", color: "white", boxShadow: "0 10px 40px rgba(0,0,0,0.15)"
+            }}
+          >
+            <div style={{ fontSize: "0.7rem", opacity: 0.6, textTransform: "uppercase", letterSpacing: "2px", marginBottom: "4px" }}>
+              Currently Viewing
+            </div>
+            <div style={{ fontSize: "1.1rem", fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: "10px" }}>
+              <span style={{ opacity: 0.6 }}>START</span>
+              <span style={{ fontSize: "0.8rem", opacity: 0.4 }}>{">"}</span>
+              <span style={{ color: level >= 1 ? "#fff" : "rgba(255,255,255,0.3)" }}>Level 1</span>
+              {level >= 2 && (
+                <>
+                  <span style={{ fontSize: "0.8rem", opacity: 0.4 }}>{">"}</span>
+                  <span style={{ color: "#fff" }}>Level 2</span>
+                </>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div style={{ width: "100vw", height: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <motion.div style={{ scale: zoomScale, opacity: zoomOpacity, position: "relative", width: "100%", height: "100%", display: "flex", justifyContent: "center", alignItems: "center" }}>
+          <AnimatePresence mode="popLayout">
+            {displayNodes.map((node, i) => {
+              const xOffset = displayNodes.length === 1 ? 0 : (i - (displayNodes.length - 1) / 2) * 380;
+              // START label for L0, THEME label for everything else
+              const label = level === 0 ? "START" : "THEME " + node.tNum;
+
+              return (
+                <Bubble 
+                  key={node.id}
+                  label={label}
+                  color={node.color}
+                  x={xOffset}
+                  size={level === 0 ? 460 : 280}
+                  isTarget={activeBranchId === node.id || level === 0}
+                  onHover={() => level !== 0 && setActiveBranchId(node.id)}
+                  onLeave={() => setActiveBranchId(null)}
+                />
+              );
+            })}
+          </AnimatePresence>
+        </motion.div>
+      </div>
+    </div>
+  );
+}
+
+function Bubble(props) {
+  return (
+    <motion.div
+      onMouseEnter={props.onHover} onMouseLeave={props.onLeave}
+      initial={{ opacity: 0, scale: 0.8 }}
+      animate={{ 
+        opacity: 1, scale: props.isTarget ? 1.15 : 1,
+        boxShadow: props.isTarget ? "0 30px 80px rgba(0,0,0,0.3), 0 0 50px " + props.color + "55" : "0 10px 30px rgba(0,0,0,0.1)"
+      }}
+      exit={{ opacity: 0, scale: 0.5 }}
+      style={{
+        position: "absolute", left: "50%", top: "50%", x: props.x - props.size/2, y: -props.size/2,
+        width: props.size, height: props.size, borderRadius: "50%",
+        background: "radial-gradient(circle at 30% 30%, rgba(255,255,255,0.45), " + props.color + ")",
+        backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.25)",
+        display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer"
+      }}
+    >
+      <h3 style={{ color: "white", fontWeight: 900, fontSize: props.size > 400 ? "2.8rem" : "1.5rem", textShadow: "0 2px 10px rgba(0,0,0,0.2)" }}>
+        {props.label}
+      </h3>
+    </motion.div>
+  );
+}
