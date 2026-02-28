@@ -1,0 +1,160 @@
+import React, { useEffect, useRef, useState } from "react";
+
+const BUBBLE_COUNT = 150; // Slightly lower for smoother physics performance
+
+export default function PhysicsRefractiveStage() {
+  const [bubbles, setBubbles] = useState([]);
+  const requestRef = useRef();
+
+  // Initialize bubbles with random positions and velocities
+  useEffect(() => {
+    const initialBubbles = Array.from({ length: BUBBLE_COUNT }).map((_, i) => ({
+      id: i,
+      x: Math.random() * 100,
+      y: Math.random() * 100,
+      vx: (Math.random() - 0.5) * 0.05, // Velocity X
+      vy: (Math.random() - 0.5) * 0.05, // Velocity Y
+      size: Math.random() > 0.3 ? Math.random() * 60 + 30 : Math.random() * 20 + 5,
+      opacity: Math.random() * 0.3 + 0.1,
+    }));
+    setBubbles(initialBubbles);
+  }, []);
+
+  // THE PHYSICS ENGINE: Runs every frame to "push" bubbles apart
+  const updatePhysics = () => {
+    setBubbles((prevBubbles) => {
+      return prevBubbles.map((b1) => {
+        let newVx = b1.vx;
+        let newVy = b1.vy;
+
+        prevBubbles.forEach((b2) => {
+          if (b1.id === b2.id) return;
+
+          const dx = b1.x - b2.x;
+          const dy = b1.y - b2.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          const minDistance = (b1.size + b2.size) / 25; // Detection radius
+
+          if (distance < minDistance) {
+            // THE PUSH: Apply a tiny force away from the neighbor
+            const force = (minDistance - distance) * 0.001;
+            newVx += (dx / distance) * force;
+            newVy += (dy / distance) * force;
+          }
+        });
+
+        // Soft Ocean Current: Gently pull them back toward center/sway
+        newVx += (Math.random() - 0.5) * 0.001;
+        newVy += (Math.random() - 0.5) * 0.001;
+
+        // Friction: Prevent them from speeding up indefinitely
+        newVx *= 0.99;
+        newVy *= 0.99;
+
+        // Wall Bounce: Keep them on screen
+        let newX = b1.x + newVx;
+        let newY = b1.y + newVy;
+        if (newX < 0 || newX > 100) newVx *= -1;
+        if (newY < 0 || newY > 100) newVy *= -1;
+
+        return { ...b1, x: newX, y: newY, vx: newVx, vy: newVy };
+      });
+    });
+    requestRef.current = requestAnimationFrame(updatePhysics);
+  };
+
+  useEffect(() => {
+    requestRef.current = requestAnimationFrame(updatePhysics);
+    return () => cancelAnimationFrame(requestRef.current);
+  }, []);
+
+  return (
+    <div style={stageContainer}>
+      <div style={originalGradientBackdrop} />
+
+      <div style={bubbleOverlay}>
+        {bubbles.map((b) => (
+          <div
+            key={b.id}
+            style={{
+              position: "absolute",
+              left: `${b.x}%`,
+              top: `${b.y}%`,
+              width: b.size,
+              height: b.size,
+              transform: "translate(-50%, -50%)", // Center-point alignment
+              borderRadius: "50%",
+              background: "radial-gradient(circle at 35% 30%, rgba(255,255,255,0.45) 0%, rgba(255,255,255,0.05) 40%, transparent 70%)",
+              boxShadow: "inset -4px -4px 12px rgba(255,255,255,0.15), inset 2px 2px 8px rgba(255,255,255,0.2)",
+              border: `0.8px solid rgba(255,255,255,0.25)`,
+              opacity: b.opacity,
+              zIndex: 5,
+              transition: "left 0.1s linear, top 0.1s linear", // Smooth out the physics steps
+            }}
+          />
+        ))}
+        <div style={cellularTexture} />
+      </div>
+
+      <div style={surfaceLight} />
+      
+      <div style={labelStyle}>
+        THE SKELETON<br/>
+        <span style={{ fontSize: '0.8rem', opacity: 1, fontWeight: 500 }}>
+          PART 1: COLLISION-AWARE BUBBLE VOLUME
+        </span>
+      </div>
+    </div>
+  );
+}
+
+// --- STYLES ---
+const stageContainer = {
+  position: "fixed",
+  inset: 0,
+  overflow: "hidden",
+  background: "#075985",
+};
+
+const originalGradientBackdrop = {
+  position: "absolute",
+  inset: 0,
+  zIndex: 1,
+  background: "linear-gradient(to bottom, #7dd3fc 0%, #0ea5e9 35%, #0369a1 75%, #075985 100%)",
+};
+
+const bubbleOverlay = {
+  position: "absolute",
+  inset: 0,
+  zIndex: 10,
+  pointerEvents: "none",
+};
+
+const cellularTexture = {
+  position: "absolute",
+  inset: 0,
+  zIndex: 11,
+  backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='b'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.05' numOctaves='2'/%3E%3CfeDiffuseLighting surfaceScale='2'%3E%3CfeDistantLight azimuth='45' elevation='45'/%3E%3C/feDiffuseLighting%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23b)' opacity='0.1'/%3E%3C/svg%3E")`,
+  backgroundSize: "400px 400px",
+  mixBlendMode: "overlay",
+  opacity: 0.1,
+};
+
+const surfaceLight = {
+  position: "absolute",
+  inset: 0,
+  zIndex: 15,
+  background: "radial-gradient(circle at 50% -10%, rgba(255,255,255,0.4) 0%, transparent 60%)",
+  pointerEvents: "none",
+};
+
+const labelStyle = {
+  position: "absolute",
+  bottom: "60px",
+  width: "100%",
+  textAlign: "center",
+  color: "white", 
+  letterSpacing: "4px",
+  fontWeight: "900",
+  zIndex: 20,
+};
