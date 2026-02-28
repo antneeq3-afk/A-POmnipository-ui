@@ -1,0 +1,201 @@
+import React, { useState, useEffect, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+
+// --- 1. DATA ---
+const ALL_AIDS = ["conditions", "res_tr", "study", "res_br"];
+const OMNI_DATA = {
+  id: "L0_ROOT", tNum: 0, label: "START", color: "#4A6984", 
+  children: [
+    { 
+      id: "L1_T1", tNum: 1, color: "#ef4444", 
+      children: [
+        { id: "L2_T1_C1", tNum: 1, color: "#ef4444", aids: ALL_AIDS },
+        { id: "L2_T1_C2", tNum: 2, color: "#facc15", aids: ALL_AIDS }
+      ] 
+    },
+    { 
+      id: "L1_T2", tNum: 2, color: "#3b82f6", 
+      children: [
+        { id: "L2_T2_C1", tNum: 1, color: "#3b82f6", aids: ALL_AIDS },
+        { id: "L2_T2_C2", tNum: 2, color: "#60a5fa", aids: ALL_AIDS }
+      ] 
+    }
+  ]
+};
+
+const GLASS_STYLE = {
+  background: "rgba(255, 255, 255, 0.2)",
+  backdropFilter: "blur(18px)",
+  border: "1px solid rgba(255, 255, 255, 0.3)",
+  borderRadius: "30px"
+};
+
+export default function OmnipositoryUI() {
+  const [level, setLevel] = useState(0);
+  const [currentNode, setCurrentNode] = useState(OMNI_DATA);
+  const [history, setHistory] = useState([]);
+  const [activeBranchId, setActiveBranchId] = useState(null);
+  const [isLocked, setIsLocked] = useState(false);
+  const [showPane, setShowPane] = useState(false);
+  const [selectedBubble, setSelectedBubble] = useState(null);
+  const [direction, setDirection] = useState(1);
+  const [paneDirection, setPaneDirection] = useState(1);
+  const [zoomingNodeId, setZoomingNodeId] = useState(null);
+
+  const EDGE_MARGIN = "25px";
+  const UPT_INSET = "120px";
+  const DISMISSAL_POS = "85px"; 
+
+  const handleClosePane = useCallback(() => { setShowPane(false); setSelectedBubble(null); }, []);
+
+  const handleZoomOut = useCallback(() => {
+    if (level > 0 && !isLocked) {
+      if (showPane) { handleClosePane(); return; }
+      setDirection(-1);
+      setIsLocked(true);
+      const prevNode = history[history.length - 1];
+      const newHistory = history.slice(0, -1);
+      setHistory(newHistory);
+      setCurrentNode(prevNode);
+      setLevel(prev => prev - 1);
+      setTimeout(() => setIsLocked(false), 800);
+    }
+  }, [level, isLocked, history, showPane, handleClosePane]);
+
+  const handleZoomIn = useCallback((forcedTargetId = null) => {
+    if (isLocked || showPane || level >= 2) return;
+    const targetId = forcedTargetId || activeBranchId;
+    const children = currentNode.children || [];
+    let targetNode = children.find(c => c.id === targetId);
+    if (!targetNode && level === 0) targetNode = OMNI_DATA.children[0];
+    if (!targetNode) return;
+
+    setZoomingNodeId(targetNode.id);
+    setDirection(1); 
+    setIsLocked(true);
+
+    setTimeout(() => {
+      setHistory(prev => [...prev, currentNode]);
+      setCurrentNode(targetNode); 
+      setLevel(prev => prev + 1);
+      setActiveBranchId(null); 
+      setZoomingNodeId(null);
+      setTimeout(() => setIsLocked(false), 800);
+    }, 400);
+  }, [level, isLocked, showPane, activeBranchId, currentNode]);
+
+  useEffect(() => {
+    const onWheel = (e) => {
+      if (showPane) return;
+      if (e.deltaY < -30) handleZoomIn();
+      if (e.deltaY > 30) handleZoomOut();
+    };
+    const onEsc = (e) => { if (e.key === "Escape") { showPane ? handleClosePane() : handleZoomOut(); } };
+    window.addEventListener("wheel", onWheel, { passive: false });
+    window.addEventListener("keydown", onEsc);
+    return () => {
+      window.removeEventListener("wheel", onWheel);
+      window.removeEventListener("keydown", onEsc);
+    };
+  }, [handleZoomIn, handleZoomOut, showPane, handleClosePane]);
+
+  const switchTheme = (newBubble) => {
+    setPaneDirection(newBubble.tNum > selectedBubble.tNum ? 1 : -1);
+    setSelectedBubble(newBubble);
+  };
+
+  const currentDisplayNodes = level === 0 ? [OMNI_DATA] : (currentNode.children || []);
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "radial-gradient(circle, #38bdf8, #0284c7)", overflow: "hidden", fontFamily: "sans-serif" }}>
+      
+      {/* GLOBAL TOOLS */}
+      <div style={{ position: "absolute", top: EDGE_MARGIN, left: EDGE_MARGIN, zIndex: 9500, width: "50px", height: "50px", borderRadius: "15px", ...GLASS_STYLE, display: "flex", alignItems: "center", justifyContent: "center", color: "white" }}>🔍</div>
+      <div style={{ position: "absolute", top: EDGE_MARGIN, right: EDGE_MARGIN, zIndex: 9500, width: "50px", height: "50px", borderRadius: "15px", ...GLASS_STYLE, display: "flex", alignItems: "center", justifyContent: "center", color: "white" }}>🧭</div>
+
+      {/* BREADCRUMBS */}
+      <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", top: EDGE_MARGIN, zIndex: 8000, display: "flex", gap: "12px", color: "white", padding: "10px 30px", fontSize: "0.8rem", ...GLASS_STYLE }}>
+        {[0, 1, 2].map((l) => l <= level && (
+          <span key={`crumb-${l}`} onClick={() => l < level && handleZoomOut()} style={{ fontWeight: l === level ? 900 : 400, opacity: l === level ? 1 : 0.6, cursor: l < level ? "pointer" : "default" }}>
+            Level {l} {l < level && " > "}
+          </span>
+        ))}
+      </div>
+
+      {/* BUBBLE STAGE */}
+      <motion.div animate={{ opacity: showPane ? 0.15 : 1, filter: showPane ? "blur(40px)" : "none" }} style={{ width: "100vw", height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 20 }}>
+        <AnimatePresence mode="wait">
+          <motion.div 
+            key={`stage-level-${level}-${currentNode.id}`}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            style={{ position: "relative", width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}
+          >
+            {currentDisplayNodes.map((node, i) => {
+              const size = level === 0 ? 450 : 280;
+              const xOffset = level === 0 ? 0 : (i - (currentDisplayNodes.length - 1) / 2) * 350;
+              return (
+                <motion.div 
+                  key={node.id} 
+                  onMouseEnter={() => setActiveBranchId(node.id)}
+                  onMouseLeave={() => setActiveBranchId(null)}
+                  onDoubleClick={() => handleZoomIn(node.id)} 
+                  initial={{ opacity: 0, scale: direction === 1 ? 0 : 2, x: xOffset }} 
+                  animate={{ opacity: 1, scale: zoomingNodeId === node.id ? 5 : 1, x: xOffset }} 
+                  exit={{ opacity: 0, scale: direction === 1 ? 5 : 0, x: xOffset }} 
+                  transition={{ duration: 0.6, ease: "easeInOut" }} 
+                  style={{ position: "absolute", width: size, height: size, borderRadius: "50%", background: `radial-gradient(circle at 30% 30%, rgba(255,255,255,0.4), ${node.color})`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
+                >
+                  <h3 style={{ color: "white", margin: 0, fontSize: level === 0 ? "3.5rem" : "1.5rem", userSelect: "none" }}>{node.tNum === 0 ? "START" : "THEME " + node.tNum}</h3>
+                  {node.tNum !== 0 && <button onClick={(e) => { e.stopPropagation(); setSelectedBubble(node); setShowPane(true); }} style={{ marginTop: "15px", padding: "8px 20px", borderRadius: "20px", border: "none", background: "white", color: "black", fontWeight: "bold" }}>CONTENT</button>}
+                </motion.div>
+              );
+            })}
+          </motion.div>
+        </AnimatePresence>
+      </motion.div>
+
+      {/* UPT LAYER WITH ICONS RESTORED */}
+      <div style={{ position: "absolute", inset: 0, zIndex: 4000, pointerEvents: showPane ? "auto" : "none" }}>
+        <AnimatePresence mode="popLayout" custom={paneDirection}>
+          {showPane && selectedBubble && (
+            <motion.div 
+              key={`upt-${selectedBubble.id}`} custom={paneDirection}
+              initial={{ x: paneDirection > 0 ? "100%" : "-100%", opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: paneDirection > 0 ? "-100%" : "100%", opacity: 0 }}
+              transition={{ duration: 0.5, ease: "easeInOut" }}
+              style={{ position: "absolute", inset: 0 }}
+            >
+              {/* THE TINTED TILE */}
+              <div style={{ position: "absolute", inset: UPT_INSET, background: `linear-gradient(135deg, rgba(220, 220, 230, 0.25), rgba(200, 200, 210, 0.25)), ${selectedBubble.color}0D`, backdropFilter: "blur(60px)", borderRadius: "50px", border: "1px solid rgba(255, 255, 255, 0.3)", overflow: "hidden", boxShadow: "0 20px 40px rgba(0,0,0,0.2)" }}>
+                <div style={{ width: "100%", textAlign: "center", paddingTop: "25px" }}>
+                  <span style={{ fontSize: "1.2rem", fontWeight: 800, color: selectedBubble.color, textShadow: `0 0 12px ${selectedBubble.color}44`, letterSpacing: "2px" }}>UNIT ({level}, {selectedBubble.tNum})</span>
+                </div>
+              </div>
+
+              {/* CORNER ICONS (Slide with Pane) */}
+              <div style={{ position: "absolute", top: UPT_INSET, left: UPT_INSET, width: "110px", height: "110px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "2.2rem", zIndex: 5000 }}>🏥</div>
+              <div style={{ position: "absolute", top: UPT_INSET, right: UPT_INSET, width: "110px", height: "110px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "2.2rem", zIndex: 5000 }}>📁</div>
+              <div style={{ position: "absolute", bottom: UPT_INSET, left: UPT_INSET, width: "110px", height: "110px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "2.2rem", zIndex: 5000 }}>📚</div>
+              <div style={{ position: "absolute", bottom: UPT_INSET, right: UPT_INSET, width: "110px", height: "110px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "2.2rem", zIndex: 5000 }}>📂</div>
+
+              {/* DISMISSAL X */}
+              <button onClick={handleClosePane} style={{ position: "absolute", top: DISMISSAL_POS, right: DISMISSAL_POS, zIndex: 6500, width: "48px", height: "48px", borderRadius: "14px", background: "rgba(255, 255, 255, 0.3)", border: "none", color: "#ef4444", fontSize: "1.4rem", fontWeight: "900", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* BOTTOM NAV */}
+      <AnimatePresence>
+        {showPane && (
+          <motion.div initial={{ y: 50, x: "-50%", opacity: 0 }} animate={{ y: 0, x: "-50%", opacity: 1 }} exit={{ y: 50, x: "-50%", opacity: 0 }} style={{ position: "absolute", left: "50%", bottom: EDGE_MARGIN, zIndex: 6000, display: "flex", gap: "10px", padding: "10px 30px", ...GLASS_STYLE }}>
+            {(currentNode.children || []).map((sibling) => (
+              <span key={`nav-${sibling.id}`} onClick={() => switchTheme(sibling)} style={{ cursor: "pointer", padding: "5px 15px", borderRadius: "20px", background: selectedBubble.id === sibling.id ? "rgba(255,255,255,0.4)" : "transparent", color: "white", fontWeight: selectedBubble.id === sibling.id ? "900" : "400" }}>Theme {sibling.tNum}</span>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
